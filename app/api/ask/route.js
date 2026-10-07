@@ -1,10 +1,12 @@
 import { openai, MODEL } from "@/lib/openai";
 
-// v0: the smallest possible AI feature.
-// The browser sends { text, question }. We send both to the model and return its answer.
+// v1: one question about an uploaded PDF. Still no memory between questions.
 export async function POST(request) {
-  const { text, question } = await request.json();
+  const { fileId, question } = await request.json();
 
+  if (!fileId) {
+    return Response.json({ error: "Upload a PDF first" }, { status: 400 });
+  }
   if (!question || question.trim() === "") {
     return Response.json({ error: "Please type a question" }, { status: 400 });
   }
@@ -12,10 +14,19 @@ export async function POST(request) {
   try {
     const response = await openai.responses.create({
       model: MODEL,
-      // "instructions" is the system prompt: rules the model should follow.
-      instructions: "Answer the question using only the text provided. If the answer isn't there, say so.",
-      // "input" is what the user gives the model: the text and the question.
-      input: `Text:\n${text}\n\nQuestion: ${question}`,
+      instructions: "Answer questions about the attached PDF. If the answer isn't in it, say so.",
+      // A message can hold several parts: here, the PDF and then the question.
+      input: [
+        {
+          role: "user",
+          content: [
+            // The model gets the text of every page AND an image of every page,
+            // so tables, charts and scanned pages work too.
+            { type: "input_file", file_id: fileId },
+            { type: "input_text", text: question },
+          ],
+        },
+      ],
     });
 
     return Response.json({ answer: response.output_text });

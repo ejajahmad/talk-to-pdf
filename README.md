@@ -16,8 +16,8 @@ still has, and what the next branch fixes.
 
 | Branch | What it adds | Main idea |
 |---|---|---|
-| **`v0-hello-llm`** ← you are here | Paste text, ask a question | API keys stay on the server, instructions, no memory |
-| `v1-upload-pdf` | Upload a PDF, ask one question about it | Files API, the model reads PDFs |
+| `v0-hello-llm` | Paste text, ask a question | API keys stay on the server, instructions, no memory |
+| **`v1-upload-pdf`** ← you are here | Upload a PDF, ask one question about it | Files API, the model reads PDFs |
 | `v2-chat-streaming` | Chat history, streaming answers, Stop button | Context, streaming, AI UX |
 | `v3-citations-viewer` | PDF viewer and clickable page citations | Hallucination, grounding, trust |
 | `v4-cost-caching` | Token and cost meter, model picker | Tokens, prompt caching, model choice |
@@ -29,6 +29,7 @@ still has, and what the next branch fixes.
 
 | File | What it does |
 |---|---|
-| `app/page.js` | A text box with sample text, a question box and the answer |
-| `app/api/ask/route.js` | Sends the text and question to OpenAI and returns the answer |
+| `app/page.js` | Two screens: upload a PDF, then ask a question about it |
+| `app/api/upload/route.js` | Uploads the PDF to OpenAI's Files API and returns its `fileId` |
+| `app/api/ask/route.js` | Sends the PDF (by id) and the question to the model |
 | `lib/openai.js` | The OpenAI client. Only the server uses it, so the API key stays secret |

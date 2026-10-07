@@ -62,3 +62,19 @@ textarea, input {
   border-radius: 14px;
   background: var(--surface);
 }
+
+/* v1: upload screen */
+.upload { max-width: 520px; margin: 18vh auto 0; padding: 0 16px; text-align: center; }
+.dropzone {
+  display: block;
+  margin-top: 24px;
+  padding: 48px 16px;
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dropzone:hover { border-color: var(--accent); }
+.dropzone input { display: none; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); }

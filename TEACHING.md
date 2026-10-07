@@ -1,39 +1,38 @@
-# Teaching notes: v0, hello LLM
+# Teaching notes: v1, upload a PDF
 
-**The idea in one sentence:** an AI feature is just an API call made from your server, with
-instructions (the rules) and input (the user's stuff).
+**The idea in one sentence:** modern models read PDFs directly, so "chat with a PDF" starts as
+"upload the file once, then send its id with the question".
 
 ## What to teach
 
-1. **Show the app.** Paste text, ask "When did the app launch?", get an answer.
+1. **Show the app.** Upload `demo/acme-q3-report.pdf` (or any PDF) and ask a
+   question about a table or chart in it.
 2. **Walk through the code, in this order:**
-   - `app/page.js`: a normal React form. On submit it calls `fetch("/api/ask")`.
-   - `app/api/ask/route.js`: our server route. It calls `openai.responses.create(...)`.
-   - `lib/openai.js`: creates the client from `OPENAI_API_KEY`.
-3. **Why the call happens on the server.** If the browser called OpenAI directly, the API key would
-   be in the page source, and anyone could copy it and spend your money. Open DevTools → Network
-   and show that the browser only talks to `/api/ask`.
-4. **Instructions vs input.**
-   - `instructions` = the system prompt, the rules ("only use the text provided").
-   - `input` = what the user gave us (the text and the question).
-   - Change the instructions live (for example, "answer like a pirate") to show their effect.
-5. **The model has no memory.** Ask "When did the app launch?", then ask "What did I just ask you?".
-   It has no idea. Every request is a brand new conversation. It only "knows" the text because we
-   send it again with every question.
-6. **Grounding, briefly.** Ask "Who is the CEO?". The text doesn't say, and the instructions tell the
-   model to admit that instead of guessing.
+   - `app/page.js`: two screens. No PDF → upload box. PDF → question box.
+   - `app/api/upload/route.js`: reads the file from the form, uploads it with
+     `openai.files.create(...)`, and returns the `fileId`.
+   - `app/api/ask/route.js`: the `input` is now a **list of parts**: the file, then the question.
+3. **Upload once, refer by id.** We don't send 5 MB of PDF with every question. The file lives at
+   OpenAI and we point to it with `file_id`. `expires_after` cleans it up after 24 hours.
+4. **The model reads text *and* pages as images.** Ask about a chart or a scanned page. This is why
+   we didn't extract the text ourselves.
+5. **Compare with v0:** the instructions barely changed. Only the input changed from a string to
+   "file + text".
 
 ## Pitfalls in this version (say these out loud)
 
-- **You have to paste text.** Real documents are PDFs with tables, charts and many pages.
-- **One question at a time, no memory.** Follow-up questions like "and in Q2?" don't work.
-- **You wait for the whole answer.** Long answers mean staring at "Thinking…" for 10+ seconds.
-- **No limits at all.** Anyone can send a huge text and run up your bill.
+- **Still no memory.** Ask "What was revenue?" and then "And in Q2?". The second question fails
+  because each question is sent on its own.
+- **You wait for the whole answer.** Big PDFs mean 10–20 seconds of "Reading…" with nothing on screen.
+- **Plain text answers.** The model writes markdown (`**bold**`, lists), and we show the raw asterisks.
+- **Security hole: the browser holds the raw `fileId`.** Every file in your OpenAI project is reachable
+  with your key. A user could send *someone else's* `fileId` to `/api/ask` and read their PDF.
+  (Fixed in v6 with a signed token.)
+- **We trust `file.type`.** The browser says "it's a PDF", but anyone can fake that. (Fixed in v6.)
 
-## What the next branch fixes (v1-upload-pdf)
+## What the next branch fixes (v2-chat-streaming)
 
-- Upload a real **PDF** instead of pasting text. The model reads the text *and* sees each page
-  as an image, so tables and charts work too.
-- The PDF is uploaded **once** to OpenAI's Files API, and later questions refer to it by its id.
-
-Memory, streaming and limits come later: v2 (chat and streaming) and v6 (limits).
+- **Chat with memory:** the browser keeps the conversation and sends all of it every time.
+- **Streaming:** the answer appears word by word, like ChatGPT.
+- **A Stop button** that actually stops the model (and the bill).
+- **Markdown** answers are rendered properly.
