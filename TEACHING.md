@@ -1,45 +1,44 @@
-# Teaching notes: v2, chat and streaming
+# Teaching notes: v3, citations you can check
 
-**The idea in one sentence:** the model never remembers anything, so "chat" means *your app* keeps
-the conversation and sends all of it every time, and streaming makes the wait feel short.
+**The idea in one sentence:** you can't stop a model from ever being wrong, so make every answer
+easy to check: each claim links to the page it came from.
 
 ## What to teach
 
-1. **Show the app.** Upload `demo/acme-q3-report.pdf`, click "Summarise this document", then ask a
-   follow-up: "And what about the mobile app?". The follow-up works now.
-2. **Walk through the code, in this order:**
-   - `app/page.js` → `sendMessage()`: it builds `conversation` = old messages + new question and
-     sends **all of it** to `/api/chat`.
-   - `app/api/chat/route.js`: the loop that turns our messages into the model's `input`. The PDF goes
-     into the first message only.
-   - Back in `app/page.js`: the `while (true) { reader.read() }` loop that adds text as it arrives.
-3. **Memory is an illusion.** Open DevTools → Network → `chat` → Payload. Show the whole history
-   being sent again with every question. Longer chats mean bigger requests, and more cost (we'll
-   measure that in v4).
-4. **Streaming.** Total time is the same, but the first words show up in about a second instead of
-   after 10+ seconds. Perceived speed is a product feature.
-   - Server: `stream: true`, then forward every `response.output_text.delta` event.
-   - Browser: `response.body.getReader()` reads the pieces as they arrive.
-5. **The Stop button.** `AbortController` cancels the `fetch` in the browser. The server notices
-   (`cancel()`) and aborts the OpenAI request, so you stop paying for words nobody will read.
-6. **Markdown.** Models write markdown. `<Markdown>` from `react-markdown` renders bold text and lists
-   instead of raw asterisks. It's the cheapest UX win there is.
+1. **Show the problem first.** On `v2-chat-streaming`, ask "Who is Acme's CEO?" about
+   `demo/acme-q3-report.pdf`. Only the CFO is named, so watch whether the model guesses.
+2. **Switch to this branch** and ask again. It should say "I couldn't find that in the document".
+3. **Ask "What was revenue in Q3?"** and click the orange **(p. 2)** button. The PDF jumps to that page.
+4. **Walk through the code, in this order:**
+   - `app/api/chat/route.js`: compare the v2 prompt with this one. It has three parts: **grounding**
+     (only the document, never guess), **citations** (an exact format we can detect in code) and **style**.
+   - `components/AssistantMessage.js`: one regex turns `(p. 4)` into a markdown link, and a custom
+     `a` component draws that link as a button.
+   - `components/PdfViewer.js`: one `<iframe>`. `#page=4` at the end of the address opens page 4.
+   - `app/page.js`: `URL.createObjectURL(file)` gives the file already in the browser a local
+     address, so the PDF is never downloaded again.
+5. **Hallucination is the core risk of AI products.** Models sound equally sure when they're right
+   and when they're wrong. You can't remove that, so design around it: **trust through verification**.
+6. **Prompting is product design.** The citation format isn't decoration. Our code depends on it.
+7. **Page labels vs page positions.** Many PDFs print "Page 12" on what is really the 2nd page of the
+   file. The viewer needs the position, so the prompt says so explicitly.
 
 ## Pitfalls in this version (say these out loud)
 
-- **You can't check the answers.** The model sounds just as confident when it's wrong. Nothing
-  shows *where* in the PDF an answer came from.
-- **The prompt is loose.** "Base your answers on the document" still lets the model fill gaps with
-  general knowledge or a plausible-sounding guess.
-- **You can't see the PDF** next to the chat.
-- **Plain-text streaming can only carry text.** We can't send anything else with the answer, such as
-  token counts or a clear error. If OpenAI fails halfway through, the answer just stops. (Fixed in v4.)
-- **Cost grows with every question**, because the whole history and the PDF are sent each time, and
-  we can't see it. (Measured in v4.)
-- The browser still holds the raw `fileId`, and nothing limits chat length. (Fixed in v6.)
+- **A prompt is a request, not a guarantee.** If the model writes "(pp. 4–5)" or "page 4" instead of
+  "(p. 4)", that citation isn't clickable. When you need a guaranteed shape, use structured
+  outputs (v5).
+- **No idea what each answer costs.** Every question re-sends the whole PDF and the whole chat.
+  How many tokens is that? How long until the first word? We can't tell.
+- **One fixed model.** No way to try a cheaper or faster model.
+- **Streaming is still plain text**, so we can't send token counts or a clear error along with the answer.
+- **Safari** may ignore `#page=` in the built-in viewer.
+- Still open from earlier: the raw `fileId` is in the browser, and nothing limits chat length. (Fixed in v6.)
 
-## What the next branch fixes (v3-citations-viewer)
+## What the next branch fixes (v4-cost-caching)
 
-- A **grounding prompt**: answer only from the document, never guess, cite the page for every claim.
-- **Clickable citations**: "(p. 4)" becomes a link.
-- A **PDF viewer** next to the chat that jumps to the cited page, so users can check every claim.
+- A **meter under every answer**: tokens in and out, how much was **cached**, time to first word, and cost.
+- A **model picker** (big vs small model), checked against an allowlist on the server.
+- **Prompt caching**: we keep the start of every request identical, so follow-up questions are
+  cheaper and faster.
+- The stream switches from plain text to **JSON lines**, so it can carry the answer *and* the usage stats.

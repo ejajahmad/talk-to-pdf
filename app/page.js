@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
+import AssistantMessage from "@/components/AssistantMessage";
+import PdfViewer from "@/components/PdfViewer";
 
 const SUGGESTIONS = ["Summarise this document", "What are the key points?", "List any dates or deadlines"];
 
 export default function Home() {
-  const [pdf, setPdf] = useState(null); // { fileId, filename } once a PDF is uploaded
+  const [pdf, setPdf] = useState(null); // { fileId, filename, url } once a PDF is uploaded
   const [uploading, setUploading] = useState(false);
   const [messages, setMessages] = useState([]); // [{ role: "user" | "assistant", content: "..." }]
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [viewer, setViewer] = useState({ page: 1, jump: 0 }); // which page the PDF viewer shows
   const stopController = useRef(null); // lets the Stop button cancel the request
   const bottomOfChat = useRef(null);
 
@@ -31,8 +33,11 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        setPdf(data);
+        // A local address for the file, so the viewer can show it without downloading it again.
+        const url = URL.createObjectURL(file);
+        setPdf({ ...data, url });
         setMessages([]);
+        setViewer({ page: 1, jump: 0 });
       } else {
         setError(data.error);
       }
@@ -92,6 +97,10 @@ export default function Home() {
     stopController.current.abort();
   }
 
+  function goToPage(page) {
+    setViewer({ page, jump: viewer.jump + 1 });
+  }
+
   if (!pdf) {
     return (
       <main className="upload">
@@ -112,57 +121,63 @@ export default function Home() {
   }
 
   return (
-    <main className="chat">
-      <header>
-        <span className="filename">📄 {pdf.filename}</span>
-        <button className="link" onClick={() => setPdf(null)}>
-          New PDF
-        </button>
-      </header>
+    <div className="workspace">
+      <PdfViewer pdfUrl={pdf.url} page={viewer.page} jump={viewer.jump} />
 
-      <section className="messages">
-        {messages.length === 0 && (
-          <div className="suggestions">
-            {SUGGESTIONS.map((suggestion) => (
-              <button key={suggestion} onClick={() => sendMessage(suggestion)}>
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        )}
+      <main className="chat">
+        <header>
+          <span className="filename">📄 {pdf.filename}</span>
+          <button className="link" onClick={() => setPdf(null)}>
+            New PDF
+          </button>
+        </header>
 
-        {messages.map((message, i) => (
-          <div key={i} className={`message ${message.role}`}>
-            <div className="bubble">
-              {message.role === "user" && message.content}
-              {message.role === "assistant" && message.content === "" && <span className="dots">Reading</span>}
-              {message.role === "assistant" && <Markdown>{message.content}</Markdown>}
+        <section className="messages">
+          {messages.length === 0 && (
+            <div className="suggestions">
+              {SUGGESTIONS.map((suggestion) => (
+                <button key={suggestion} onClick={() => sendMessage(suggestion)}>
+                  {suggestion}
+                </button>
+              ))}
             </div>
-          </div>
-        ))}
-        <div ref={bottomOfChat} />
-      </section>
+          )}
 
-      {error && <p className="error">{error}</p>}
+          {messages.map((message, i) => (
+            <div key={i} className={`message ${message.role}`}>
+              <div className="bubble">
+                {message.role === "user" && message.content}
+                {message.role === "assistant" && message.content === "" && <span className="dots">Reading</span>}
+                {message.role === "assistant" && (
+                  <AssistantMessage content={message.content} onCitationClick={goToPage} />
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={bottomOfChat} />
+        </section>
 
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage(input);
-        }}
-      >
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question about the PDF…" />
-        {loading ? (
-          <button type="button" className="stop" onClick={stop}>
-            Stop
-          </button>
-        ) : (
-          <button type="submit" disabled={input.trim() === ""}>
-            Send
-          </button>
-        )}
-      </form>
-    </main>
+        {error && <p className="error">{error}</p>}
+
+        <form
+          className="composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage(input);
+          }}
+        >
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question about the PDF…" />
+          {loading ? (
+            <button type="button" className="stop" onClick={stop}>
+              Stop
+            </button>
+          ) : (
+            <button type="submit" disabled={input.trim() === ""}>
+              Send
+            </button>
+          )}
+        </form>
+      </main>
+    </div>
   );
 }
