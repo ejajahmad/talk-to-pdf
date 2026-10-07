@@ -1,38 +1,45 @@
-# Teaching notes: v1, upload a PDF
+# Teaching notes: v2, chat and streaming
 
-**The idea in one sentence:** modern models read PDFs directly, so "chat with a PDF" starts as
-"upload the file once, then send its id with the question".
+**The idea in one sentence:** the model never remembers anything, so "chat" means *your app* keeps
+the conversation and sends all of it every time, and streaming makes the wait feel short.
 
 ## What to teach
 
-1. **Show the app.** Upload `demo/acme-q3-report.pdf` (or any PDF) and ask a
-   question about a table or chart in it.
+1. **Show the app.** Upload `demo/acme-q3-report.pdf`, click "Summarise this document", then ask a
+   follow-up: "And what about the mobile app?". The follow-up works now.
 2. **Walk through the code, in this order:**
-   - `app/page.js`: two screens. No PDF → upload box. PDF → question box.
-   - `app/api/upload/route.js`: reads the file from the form, uploads it with
-     `openai.files.create(...)`, and returns the `fileId`.
-   - `app/api/ask/route.js`: the `input` is now a **list of parts**: the file, then the question.
-3. **Upload once, refer by id.** We don't send 5 MB of PDF with every question. The file lives at
-   OpenAI and we point to it with `file_id`. `expires_after` cleans it up after 24 hours.
-4. **The model reads text *and* pages as images.** Ask about a chart or a scanned page. This is why
-   we didn't extract the text ourselves.
-5. **Compare with v0:** the instructions barely changed. Only the input changed from a string to
-   "file + text".
+   - `app/page.js` → `sendMessage()`: it builds `conversation` = old messages + new question and
+     sends **all of it** to `/api/chat`.
+   - `app/api/chat/route.js`: the loop that turns our messages into the model's `input`. The PDF goes
+     into the first message only.
+   - Back in `app/page.js`: the `while (true) { reader.read() }` loop that adds text as it arrives.
+3. **Memory is an illusion.** Open DevTools → Network → `chat` → Payload. Show the whole history
+   being sent again with every question. Longer chats mean bigger requests, and more cost (we'll
+   measure that in v4).
+4. **Streaming.** Total time is the same, but the first words show up in about a second instead of
+   after 10+ seconds. Perceived speed is a product feature.
+   - Server: `stream: true`, then forward every `response.output_text.delta` event.
+   - Browser: `response.body.getReader()` reads the pieces as they arrive.
+5. **The Stop button.** `AbortController` cancels the `fetch` in the browser. The server notices
+   (`cancel()`) and aborts the OpenAI request, so you stop paying for words nobody will read.
+6. **Markdown.** Models write markdown. `<Markdown>` from `react-markdown` renders bold text and lists
+   instead of raw asterisks. It's the cheapest UX win there is.
 
 ## Pitfalls in this version (say these out loud)
 
-- **Still no memory.** Ask "What was revenue?" and then "And in Q2?". The second question fails
-  because each question is sent on its own.
-- **You wait for the whole answer.** Big PDFs mean 10–20 seconds of "Reading…" with nothing on screen.
-- **Plain text answers.** The model writes markdown (`**bold**`, lists), and we show the raw asterisks.
-- **Security hole: the browser holds the raw `fileId`.** Every file in your OpenAI project is reachable
-  with your key. A user could send *someone else's* `fileId` to `/api/ask` and read their PDF.
-  (Fixed in v6 with a signed token.)
-- **We trust `file.type`.** The browser says "it's a PDF", but anyone can fake that. (Fixed in v6.)
+- **You can't check the answers.** The model sounds just as confident when it's wrong. Nothing
+  shows *where* in the PDF an answer came from.
+- **The prompt is loose.** "Base your answers on the document" still lets the model fill gaps with
+  general knowledge or a plausible-sounding guess.
+- **You can't see the PDF** next to the chat.
+- **Plain-text streaming can only carry text.** We can't send anything else with the answer, such as
+  token counts or a clear error. If OpenAI fails halfway through, the answer just stops. (Fixed in v4.)
+- **Cost grows with every question**, because the whole history and the PDF are sent each time, and
+  we can't see it. (Measured in v4.)
+- The browser still holds the raw `fileId`, and nothing limits chat length. (Fixed in v6.)
 
-## What the next branch fixes (v2-chat-streaming)
+## What the next branch fixes (v3-citations-viewer)
 
-- **Chat with memory:** the browser keeps the conversation and sends all of it every time.
-- **Streaming:** the answer appears word by word, like ChatGPT.
-- **A Stop button** that actually stops the model (and the bill).
-- **Markdown** answers are rendered properly.
+- A **grounding prompt**: answer only from the document, never guess, cite the page for every claim.
+- **Clickable citations**: "(p. 4)" becomes a link.
+- A **PDF viewer** next to the chat that jumps to the cited page, so users can check every claim.

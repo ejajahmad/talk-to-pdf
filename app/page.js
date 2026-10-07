@@ -1,21 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
+
+const SUGGESTIONS = ["Summarise this document", "What are the key points?", "List any dates or deadlines"];
 
 export default function Home() {
   const [pdf, setPdf] = useState(null); // { fileId, filename } once a PDF is uploaded
   const [uploading, setUploading] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [messages, setMessages] = useState([]); // [{ role: "user" | "assistant", content: "..." }]
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const stopController = useRef(null); // lets the Stop button cancel the request
+  const bottomOfChat = useRef(null);
+
+  // Scroll to the newest message whenever the messages change.
+  useEffect(() => {
+    bottomOfChat.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   async function uploadPdf(file) {
     setUploading(true);
     setError("");
 
     try {
-      // Files are sent as "form data", like a classic HTML file upload.
       const form = new FormData();
       form.append("file", file);
       const response = await fetch("/api/upload", { method: "POST", body: form });
@@ -23,7 +32,7 @@ export default function Home() {
 
       if (response.ok) {
         setPdf(data);
-        setAnswer("");
+        setMessages([]);
       } else {
         setError(data.error);
       }
@@ -33,32 +42,56 @@ export default function Home() {
     setUploading(false);
   }
 
-  async function askQuestion(event) {
-    event.preventDefault();
+  async function sendMessage(question) {
+    if (question.trim() === "" || loading) return;
+
+    // The conversation so far, plus the new question. This is what the model will see.
+    const conversation = [...messages, { role: "user", content: question }];
+    // On screen, also add an empty answer that we fill in as the text streams in.
+    setMessages([...conversation, { role: "assistant", content: "" }]);
+    setInput("");
     setLoading(true);
     setError("");
-    setAnswer("");
+
+    const controller = new AbortController();
+    stopController.current = controller;
+    let answer = "";
 
     try {
-      const response = await fetch("/api/ask", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: pdf.fileId, question }),
+        body: JSON.stringify({ fileId: pdf.fileId, messages: conversation }),
+        signal: controller.signal,
       });
-      const data = await response.json();
-
-      if (response.ok) {
-        setAnswer(data.answer);
-      } else {
-        setError(data.error);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
       }
-    } catch {
-      setError("Could not reach the server");
+
+      // Read the answer piece by piece as the server sends it.
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        answer += decoder.decode(value, { stream: true });
+        setMessages([...conversation, { role: "assistant", content: answer }]);
+      }
+    } catch (err) {
+      // Pressing Stop throws an "AbortError". That's not a real error.
+      if (err.name !== "AbortError") setError(err.message);
     }
+
+    // Stopped before any text arrived? Then drop the empty answer bubble.
+    if (answer === "") setMessages(conversation);
     setLoading(false);
   }
 
-  // Screen 1: no PDF yet, so show the upload box.
+  function stop() {
+    stopController.current.abort();
+  }
+
   if (!pdf) {
     return (
       <main className="upload">
@@ -78,29 +111,58 @@ export default function Home() {
     );
   }
 
-  // Screen 2: a PDF is uploaded, so show the question box.
   return (
-    <main className="page">
-      <p>
-        📄 <b>{pdf.filename}</b>{" "}
+    <main className="chat">
+      <header>
+        <span className="filename">📄 {pdf.filename}</span>
         <button className="link" onClick={() => setPdf(null)}>
           New PDF
         </button>
-      </p>
+      </header>
 
-      <form className="ask-form" onSubmit={askQuestion}>
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question about the PDF…"
-        />
-        <button type="submit" disabled={loading || question.trim() === ""}>
-          {loading ? "Reading…" : "Ask"}
-        </button>
-      </form>
+      <section className="messages">
+        {messages.length === 0 && (
+          <div className="suggestions">
+            {SUGGESTIONS.map((suggestion) => (
+              <button key={suggestion} onClick={() => sendMessage(suggestion)}>
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {messages.map((message, i) => (
+          <div key={i} className={`message ${message.role}`}>
+            <div className="bubble">
+              {message.role === "user" && message.content}
+              {message.role === "assistant" && message.content === "" && <span className="dots">Reading</span>}
+              {message.role === "assistant" && <Markdown>{message.content}</Markdown>}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomOfChat} />
+      </section>
 
       {error && <p className="error">{error}</p>}
-      {answer && <div className="answer">{answer}</div>}
+
+      <form
+        className="composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          sendMessage(input);
+        }}
+      >
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question about the PDF…" />
+        {loading ? (
+          <button type="button" className="stop" onClick={stop}>
+            Stop
+          </button>
+        ) : (
+          <button type="submit" disabled={input.trim() === ""}>
+            Send
+          </button>
+        )}
+      </form>
     </main>
   );
 }
