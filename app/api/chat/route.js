@@ -1,4 +1,5 @@
-import { openai, MODEL } from "@/lib/openai";
+import { openai } from "@/lib/openai";
+import { findModel, calculateCost } from "@/lib/models";
 
 // v3: a stricter prompt. Answer only from the PDF, and cite a page for every claim,
 // so the user can click the citation and check it.
@@ -18,11 +19,15 @@ Citations
 Style
 - Be concise. Use short paragraphs or bullet points when it helps.`;
 
-// v2: a chat. The browser sends the WHOLE conversation every time:
+// The browser sends the WHOLE conversation every time:
 //   messages = [{ role: "user", content: "..." }, { role: "assistant", content: "..." }, ...]
-// and we stream the answer back as plain text, a few words at a time.
+// v4: we stream back one JSON object per line ("JSON lines"):
+//   {"type":"text","text":"..."}     a piece of the answer
+//   {"type":"usage", ...}            tokens, cache, speed and cost, once at the end
+//   {"type":"error","message":"..."} if something goes wrong halfway
 export async function POST(request) {
-  const { fileId, messages } = await request.json();
+  const { fileId, messages, modelId } = await request.json();
+  const model = findModel(modelId); // only models from our list
 
   if (!fileId || !messages || messages.length === 0) {
     return Response.json({ error: "Missing PDF or messages" }, { status: 400 });
@@ -30,6 +35,8 @@ export async function POST(request) {
 
   // The model has no memory, so we rebuild the conversation for it every time.
   // The PDF goes into the FIRST user message, right before the first question.
+  // That keeps the start of every request identical (instructions + PDF), which is
+  // exactly what prompt caching needs: follow-up questions reuse the already-read PDF.
   const input = [];
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
@@ -46,45 +53,71 @@ export async function POST(request) {
     }
   }
 
-  // stream: true means OpenAI sends the answer in small pieces as it writes it.
+  const startTime = Date.now();
   let stream;
   try {
     stream = await openai.responses.create({
-      model: MODEL,
+      model: model.id,
       instructions: SYSTEM_PROMPT,
       input,
       stream: true,
+      // Questions about the same PDF share a cache key, so they land on the same cache.
+      prompt_cache_key: fileId,
     });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "The AI request failed" }, { status: 500 });
   }
 
-  // Pass each piece of text on to the browser as soon as it arrives.
   const encoder = new TextEncoder();
+  let stopped = false;
   const body = new ReadableStream({
     async start(controller) {
+      // Send one JSON object as one line.
+      function send(data) {
+        controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+      }
+
+      let firstWordTime = null;
       try {
         for await (const event of stream) {
           if (event.type === "response.output_text.delta") {
-            controller.enqueue(encoder.encode(event.delta));
+            if (firstWordTime === null) firstWordTime = Date.now();
+            send({ type: "text", text: event.delta });
+          }
+
+          // The last event has the token counts for the whole answer.
+          if (event.type === "response.completed") {
+            const usage = event.response.usage;
+            const stats = {
+              model: model.id,
+              inputTokens: usage.input_tokens,
+              cachedTokens: usage.input_tokens_details.cached_tokens,
+              outputTokens: usage.output_tokens,
+              reasoningTokens: usage.output_tokens_details.reasoning_tokens,
+              secondsToFirstWord: firstWordTime ? (firstWordTime - startTime) / 1000 : null,
+              totalSeconds: (Date.now() - startTime) / 1000,
+              cost: calculateCost(model, usage),
+            };
+            console.log("usage", stats);
+            send({ type: "usage", ...stats });
           }
         }
       } catch (error) {
-        console.error(error);
+        if (!stopped) {
+          console.error(error);
+          send({ type: "error", message: "The AI request failed. Please try again." });
+        }
       }
-      try {
-        controller.close();
-      } catch {
-        // Already closed, because the browser went away.
-      }
+      if (!stopped) controller.close();
     },
     // Called when the browser stops reading (Stop button or closed tab).
     // Stop the OpenAI request too, so we stop paying for words nobody reads.
     cancel() {
+      stopped = true;
       stream.controller.abort();
     },
   });
 
-  return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  return new Response(body, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8" } });
 }

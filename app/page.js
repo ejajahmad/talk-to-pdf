@@ -3,13 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import AssistantMessage from "@/components/AssistantMessage";
 import PdfViewer from "@/components/PdfViewer";
+import UsageMeta, { formatDollars } from "@/components/UsageMeta";
+import { MODELS } from "@/lib/models";
+import { readJsonLines } from "@/lib/read-json-lines";
 
 const SUGGESTIONS = ["Summarise this document", "What are the key points?", "List any dates or deadlines"];
 
 export default function Home() {
   const [pdf, setPdf] = useState(null); // { fileId, filename, url } once a PDF is uploaded
   const [uploading, setUploading] = useState(false);
-  const [messages, setMessages] = useState([]); // [{ role: "user" | "assistant", content: "..." }]
+  const [messages, setMessages] = useState([]); // [{ role: "user" | "assistant", content: "...", usage }]
+  const [modelId, setModelId] = useState(MODELS[0].id);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -61,12 +65,13 @@ export default function Home() {
     const controller = new AbortController();
     stopController.current = controller;
     let answer = "";
+    let usage = null;
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: pdf.fileId, messages: conversation }),
+        body: JSON.stringify({ fileId: pdf.fileId, messages: conversation, modelId }),
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -74,15 +79,13 @@ export default function Home() {
         throw new Error(data.error);
       }
 
-      // Read the answer piece by piece as the server sends it.
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        answer += decoder.decode(value, { stream: true });
-        setMessages([...conversation, { role: "assistant", content: answer }]);
-      }
+      // Each line from the server is one event: a piece of text, the usage stats, or an error.
+      await readJsonLines(response, (event) => {
+        if (event.type === "text") answer += event.text;
+        if (event.type === "usage") usage = event;
+        if (event.type === "error") setError(event.message);
+        setMessages([...conversation, { role: "assistant", content: answer, usage }]);
+      });
     } catch (err) {
       // Pressing Stop throws an "AbortError". That's not a real error.
       if (err.name !== "AbortError") setError(err.message);
@@ -95,6 +98,16 @@ export default function Home() {
 
   function stop() {
     stopController.current.abort();
+  }
+
+  // Add up tokens and cost for the whole conversation.
+  let sessionTokens = 0;
+  let sessionCost = 0;
+  for (const message of messages) {
+    if (message.usage) {
+      sessionTokens += message.usage.inputTokens + message.usage.outputTokens;
+      sessionCost += message.usage.cost || 0;
+    }
   }
 
   function goToPage(page) {
@@ -127,10 +140,24 @@ export default function Home() {
       <main className="chat">
         <header>
           <span className="filename">📄 {pdf.filename}</span>
+          <select value={modelId} onChange={(e) => setModelId(e.target.value)} disabled={loading}>
+            {MODELS.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.label}
+              </option>
+            ))}
+          </select>
           <button className="link" onClick={() => setPdf(null)}>
             New PDF
           </button>
         </header>
+
+        {sessionTokens > 0 && (
+          <div className="session-total">
+            This chat so far: {sessionTokens.toLocaleString()} tokens
+            {sessionCost > 0 && ` · ${formatDollars(sessionCost)}`}
+          </div>
+        )}
 
         <section className="messages">
           {messages.length === 0 && (
@@ -152,6 +179,7 @@ export default function Home() {
                   <AssistantMessage content={message.content} onCitationClick={goToPage} />
                 )}
               </div>
+              {message.usage && <UsageMeta usage={message.usage} />}
             </div>
           ))}
           <div ref={bottomOfChat} />
