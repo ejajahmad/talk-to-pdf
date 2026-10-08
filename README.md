@@ -20,27 +20,33 @@ still has, and what the next branch fixes.
 | `v1-upload-pdf` | Upload a PDF, ask one question about it | Files API, the model reads PDFs |
 | `v2-chat-streaming` | Chat history, streaming answers, Stop button | Context, streaming, AI UX |
 | `v3-citations-viewer` | PDF viewer and clickable page citations | Hallucination, grounding, trust |
-| **`v4-cost-caching`** ← you are here | Token and cost meter, model picker | Tokens, prompt caching, model choice |
-| `v5-structured-tools` | "Key facts" table, calculator and go-to-page tools | Structured outputs, tool calling (agents) |
+| `v4-cost-caching` | Token and cost meter, model picker | Tokens, prompt caching, model choice |
+| **`v5-structured-tools`** ← you are here | "Key facts" table, calculator and go-to-page tools | Structured outputs, tool calling (agents) |
 | `v6-production` | Secure tokens, limits, logs, feedback, evals | Safety, evals, observability |
 | `v7-big-pdfs` | Token count per PDF, upload dedup, RAG mode | Cost at scale, RAG |
 
 ## Files in this step
 
-> **Before you demo:** fill in the prices (US dollars per 1 million tokens) in `lib/models.js` from
-> [openai.com/api/pricing](https://openai.com/api/pricing), and check that your account can use the
-> model ids listed there. Without prices, the meter shows tokens and timings but no $ amount.
-
 | File | What it does |
 |---|---|
+| `app/api/extract/route.js` | **Structured outputs.** A JSON schema with `strict: true`, so the model must reply with `{ document_type, summary, facts[] }` |
+| `components/FactsCard.js` | Draws that JSON as a table. Each fact links to its page |
+| `lib/tools.js` | **Tool calling.** The tool definitions (`calculate`, `go_to_page`) and the code that runs them |
+| `app/api/chat/route.js` | **The agent loop.** Call the model, run the tools it asks for, send back the results, repeat (5 steps max) |
+| `components/ToolCalls.js` | Shows each tool call above the answer, e.g. 🧮 `(4.20-3.56)/3.56*100` = **17.98** |
+| `app/page.js` | The "Key facts" button, and scrolls the viewer when the model calls `go_to_page` |
 | `lib/models.js` | The list of models users can pick, their prices, and `calculateCost()` |
-| `app/api/chat/route.js` | Checks the chosen model, sets `prompt_cache_key`, and streams **JSON lines**: text pieces, then one `usage` event |
 | `lib/read-json-lines.js` | Reads the JSON-lines stream in the browser, one event at a time |
 | `components/UsageMeta.js` | The meter line under each answer: tokens, % cached, speed, cost |
-| `app/page.js` | Model picker in the header, and a running total for the chat |
 | `components/AssistantMessage.js` | Renders markdown and turns `(p. 4)` citations into buttons |
 | `components/PdfViewer.js` | The browser's own PDF viewer in an `<iframe>`, opened at `#page=N` |
 | `app/api/upload/route.js` | Uploads the PDF to OpenAI's Files API and returns its `fileId` |
 
-> The viewer uses the browser's built-in PDF viewer. Jumping to a page works in Chrome, Edge and
-> Firefox. Safari shows the PDF but may ignore `#page=`, so demo in Chrome.
+```
+              ┌───────────────────────────────────────────────┐
+question ───▶ │ model ── plain text? ──▶ stream it, done       │
+              │   │                                            │
+              │   └── "call calculate({ expression })" ────────┤
+              │         our server runs it, sends the result ──┘  (repeat, 5 steps max)
+              └────────────────────────────────────────────────
+```

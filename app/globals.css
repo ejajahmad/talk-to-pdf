@@ -142,3 +142,27 @@ select {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* v5: tool calls and the key facts table */
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tool {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 13px;
+}
+.facts {
+  width: 100%;
+  overflow-x: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.facts p { margin-top: 0; }
+.badge { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--accent); }
+.facts table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.facts td { padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.category { padding: 1px 6px; border-radius: 6px; background: var(--border); font-size: 11px; white-space: nowrap; }
+.chat header .filename { flex: 1; min-width: 0; }
