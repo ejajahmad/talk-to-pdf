@@ -1,5 +1,9 @@
 import { openai } from "@/lib/openai";
 import { findModel, calculateCost } from "@/lib/models";
+import { readToken } from "@/lib/doc-token";
+import { friendlyError } from "@/lib/guardrails";
+import { isRateLimited, tooManyRequests, getIp } from "@/lib/rate-limit";
+import { logEvent, hashIp } from "@/lib/log";
 
 // Structured outputs: instead of free text, the model MUST reply with JSON in exactly this shape.
 // With strict: true, OpenAI guarantees it, so the browser can draw a table without any guessing.
@@ -32,11 +36,14 @@ const FACTS_SCHEMA = {
 };
 
 export async function POST(request) {
-  const { fileId, modelId } = await request.json();
+  if (isRateLimited(request, "extract", 10, 10)) return tooManyRequests(); // 10 per 10 minutes
+
+  const { token, modelId } = await request.json();
   const model = findModel(modelId);
 
+  const fileId = readToken(token);
   if (!fileId) {
-    return Response.json({ error: "Upload a PDF first" }, { status: 400 });
+    return Response.json({ error: "Invalid document. Please upload the PDF again." }, { status: 401 });
   }
 
   try {
@@ -52,9 +59,21 @@ export async function POST(request) {
 
     // The answer is a JSON string that matches FACTS_SCHEMA.
     const facts = JSON.parse(response.output_text);
-    return Response.json({ ...facts, cost: calculateCost(model, response.usage) });
+    const cost = calculateCost(model, response.usage);
+    await logEvent({
+      type: "extract",
+      user: hashIp(getIp(request)),
+      file: fileId,
+      model: model.id,
+      facts: facts.facts.length,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cost,
+    });
+    return Response.json({ ...facts, cost });
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Extracting the facts failed" }, { status: 500 });
+    await logEvent({ type: "extract", model: model.id, outcome: "error", error: error.message });
+    return Response.json({ error: friendlyError(error) }, { status: 500 });
   }
 }

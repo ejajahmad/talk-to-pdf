@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "demo-pdfs": "node scripts/make-demo-pdfs.js",
+    "eval": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/eval.js",
+    "stats": "node scripts/stats.js"
   },
   "dependencies": {
     "next": "^16.3.8",
@@ -13,5 +16,6 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0"
-  }
+  },
+  "type": "module"
 }

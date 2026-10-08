@@ -166,3 +166,15 @@ select {
 .facts td { padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
 .category { padding: 1px 6px; border-radius: 6px; background: var(--border); font-size: 11px; white-space: nowrap; }
 .chat header .filename { flex: 1; min-width: 0; }
+
+/* v6: Copy and 👍/👎 under each answer */
+.actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 13px; }
+.actions button {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+}
+.actions button:hover:not(:disabled) { border-color: var(--border); color: var(--text); }
+.actions button.rated { opacity: 1; border-color: var(--accent); }

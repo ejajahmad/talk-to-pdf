@@ -6,6 +6,8 @@ import PdfViewer from "@/components/PdfViewer";
 import UsageMeta, { formatDollars } from "@/components/UsageMeta";
 import ToolCalls from "@/components/ToolCalls";
 import FactsCard from "@/components/FactsCard";
+import AnswerActions from "@/components/AnswerActions";
+import { LIMITS } from "@/lib/guardrails";
 import { MODELS } from "@/lib/models";
 import { readJsonLines } from "@/lib/read-json-lines";
 
@@ -17,7 +19,7 @@ const SUGGESTIONS = [
 ];
 
 export default function Home() {
-  const [pdf, setPdf] = useState(null); // { fileId, filename, url } once a PDF is uploaded
+  const [pdf, setPdf] = useState(null); // { token, filename, url } once a PDF is uploaded
   const [uploading, setUploading] = useState(false);
   // Chat messages: { role: "user" | "assistant", content, tools, usage }
   // Key facts cards: { role: "facts", facts }
@@ -87,7 +89,7 @@ export default function Home() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: pdf.fileId, messages: conversation, modelId }),
+        body: JSON.stringify({ token: pdf.token, messages: conversation, modelId }),
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -127,7 +129,7 @@ export default function Home() {
       const response = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: pdf.fileId, modelId }),
+        body: JSON.stringify({ token: pdf.token, modelId }),
       });
       const data = await response.json();
 
@@ -241,6 +243,7 @@ export default function Home() {
                   )}
                 </div>
                 {message.usage && <UsageMeta usage={message.usage} />}
+                {message.usage && <AnswerActions content={message.content} requestId={message.usage.requestId} />}
               </div>
             );
           })}
@@ -256,7 +259,12 @@ export default function Home() {
             sendMessage(input);
           }}
         >
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question about the PDF…" />
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask a question about the PDF…"
+            maxLength={LIMITS.maxQuestionLength}
+          />
           {loading ? (
             <button type="button" className="stop" onClick={stop}>
               Stop
