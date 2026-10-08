@@ -6,6 +6,8 @@
 //   npm run eval                           all cases with the default model
 //   npm run eval -- --model gpt-5-mini     try another model
 //   npm run eval -- --only injection       only cases whose id contains "injection"
+//   npm run eval -- --mode rag             v7: search the PDF (RAG) instead of sending all of it
+//   npm run eval -- --big --mode rag       v7: also run the 200-page book cases (~110k tokens each in full mode!)
 //
 // Each case in evals/cases.json can check:
 //   mustInclude      the answer contains ALL of these strings
@@ -21,6 +23,8 @@ import { toFile } from "openai";
 import { openai } from "../lib/openai.js";
 import { runAgent } from "../lib/agent.js";
 import { findModel } from "../lib/models.js";
+import { readPageTexts } from "../lib/pdf-text.js";
+import { createIndex } from "../lib/rag.js";
 
 // ---- Read the command line options ----
 const args = process.argv.slice(2);
@@ -30,9 +34,13 @@ function option(name) {
 }
 const model = findModel(option("--model"));
 const only = option("--only");
+const mode = option("--mode") === "rag" ? "rag" : "full";
+const big = args.includes("--big");
 
 let cases = JSON.parse(readFileSync("evals/cases.json", "utf8"));
 if (only) cases = cases.filter((c) => c.id.includes(only));
+// The big-book cases are expensive in full mode, so they only run with --big (or --only).
+if (!big && !only) cases = cases.filter((c) => !c.big);
 
 // ---- Helpers for the checks ----
 function contains(text, snippet) {
@@ -123,18 +131,26 @@ async function check(testCase, answer, toolCalls) {
   return problems;
 }
 
-// ---- Upload each PDF once ----
-console.log(`Running ${cases.length} eval case(s) with ${model.id}\n`);
+// ---- Upload each PDF once (and in RAG mode, index it once) ----
+console.log(`Running ${cases.length} eval case(s) with ${model.id}, ${mode} mode\n`);
 
 const fileIds = {}; // "demo/acme-q3-report.pdf" -> "file-abc123"
+const vectorStoreIds = {}; // "demo/acme-q3-report.pdf" -> "vs_abc123" (RAG mode only)
 for (const testCase of cases) {
   if (fileIds[testCase.pdf]) continue;
+  const bytes = readFileSync(testCase.pdf);
+  const filename = testCase.pdf.split("/").pop();
   const uploaded = await openai.files.create({
-    file: await toFile(readFileSync(testCase.pdf), testCase.pdf.split("/").pop(), { type: "application/pdf" }),
+    file: await toFile(bytes, filename, { type: "application/pdf" }),
     purpose: "user_data",
     expires_after: { anchor: "created_at", seconds: 60 * 60 },
   });
   fileIds[testCase.pdf] = uploaded.id;
+
+  if (mode === "rag") {
+    console.log(`Indexing ${filename}…`);
+    vectorStoreIds[testCase.pdf] = await createIndex(await readPageTexts(bytes), filename);
+  }
 }
 
 // ---- Run the cases, one after another ----
@@ -145,6 +161,8 @@ for (const testCase of cases) {
       model,
       fileId: fileIds[testCase.pdf],
       messages: [{ role: "user", content: testCase.question }],
+      mode,
+      vectorStoreId: vectorStoreIds[testCase.pdf],
     });
     const problems = await check(testCase, text, toolCalls);
     results.push({ id: testCase.id, pass: problems.length === 0, problems, answer: text, toolCalls, stats });
@@ -164,13 +182,22 @@ for (const testCase of cases) {
 for (const fileId of Object.values(fileIds)) {
   await openai.files.delete(fileId).catch(() => {});
 }
+for (const vectorStoreId of Object.values(vectorStoreIds)) {
+  await openai.vectorStores.delete(vectorStoreId).catch(() => {});
+}
 
 const passed = results.filter((r) => r.pass).length;
-console.log(`\n${passed}/${results.length} passed`);
+const answered = results.filter((r) => r.stats);
+const averageTokens = Math.round(
+  answered.reduce((total, r) => total + r.stats.inputTokens, 0) / (answered.length || 1),
+);
+console.log(
+  `\n${passed}/${results.length} passed · on average ${averageTokens.toLocaleString()} input tokens per question`,
+);
 
 mkdirSync("evals/results", { recursive: true });
-const resultsFile = `evals/results/${new Date().toISOString().replace(/[:.]/g, "-")}-${model.id}.json`;
-writeFileSync(resultsFile, JSON.stringify({ model: model.id, passed, total: results.length, results }, null, 2));
+const resultsFile = `evals/results/${new Date().toISOString().replace(/[:.]/g, "-")}-${model.id}-${mode}.json`;
+writeFileSync(resultsFile, JSON.stringify({ model: model.id, mode, passed, total: results.length, results }, null, 2));
 console.log(`Full answers saved to ${resultsFile}`);
 
 // Exit code 1 when something failed, so this can block a deploy in CI.

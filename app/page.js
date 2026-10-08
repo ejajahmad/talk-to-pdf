@@ -7,6 +7,7 @@ import UsageMeta, { formatDollars } from "@/components/UsageMeta";
 import ToolCalls from "@/components/ToolCalls";
 import FactsCard from "@/components/FactsCard";
 import AnswerActions from "@/components/AnswerActions";
+import ModeBar from "@/components/ModeBar";
 import { LIMITS } from "@/lib/guardrails";
 import { MODELS } from "@/lib/models";
 import { readJsonLines } from "@/lib/read-json-lines";
@@ -19,7 +20,8 @@ const SUGGESTIONS = [
 ];
 
 export default function Home() {
-  const [pdf, setPdf] = useState(null); // { token, filename, url } once a PDF is uploaded
+  // Once a PDF is uploaded: { token, indexToken, filename, tokens, url, file }
+  const [pdf, setPdf] = useState(null);
   const [uploading, setUploading] = useState(false);
   // Chat messages: { role: "user" | "assistant", content, tools, usage }
   // Key facts cards: { role: "facts", facts }
@@ -30,6 +32,8 @@ export default function Home() {
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState("");
   const [viewer, setViewer] = useState({ page: 1, jump: 0 }); // which page the PDF viewer shows
+  const [mode, setMode] = useState("full"); // v7: "full" (send the whole PDF) or "rag" (search it)
+  const [indexing, setIndexing] = useState(false);
   const stopController = useRef(null); // lets the Stop button cancel the request
   const bottomOfChat = useRef(null);
 
@@ -51,9 +55,11 @@ export default function Home() {
       if (response.ok) {
         // A local address for the file, so the viewer can show it without downloading it again.
         const url = URL.createObjectURL(file);
-        setPdf({ ...data, url });
+        setPdf({ ...data, url, file }); // keep the file: RAG indexing sends it again
         setMessages([]);
         setViewer({ page: 1, jump: 0 });
+        // Already indexed (the same PDF was uploaded before)? Then start in RAG mode.
+        setMode(data.indexToken ? "rag" : "full");
       } else {
         setError(data.error);
       }
@@ -89,7 +95,7 @@ export default function Home() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: pdf.token, messages: conversation, modelId }),
+        body: JSON.stringify({ token: pdf.token, messages: conversation, modelId, mode, indexToken: pdf.indexToken }),
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -143,6 +149,34 @@ export default function Home() {
     }
     setLoading(false);
     setExtracting(false);
+  }
+
+  // v7: switching to RAG the first time builds the search index.
+  async function changeMode(newMode) {
+    if (newMode === "full" || pdf.indexToken) {
+      setMode(newMode);
+      return;
+    }
+
+    setIndexing(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("token", pdf.token);
+      form.append("file", pdf.file);
+      const response = await fetch("/api/index", { method: "POST", body: form });
+      const data = await response.json();
+
+      if (response.ok) {
+        setPdf({ ...pdf, indexToken: data.indexToken });
+        setMode("rag");
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError("Could not reach the server");
+    }
+    setIndexing(false);
   }
 
   function stop() {
@@ -212,6 +246,8 @@ export default function Home() {
             {sessionCost > 0 && ` · ${formatDollars(sessionCost)}`}
           </div>
         )}
+
+        <ModeBar tokens={pdf.tokens} mode={mode} onModeChange={changeMode} indexing={indexing} disabled={loading} />
 
         <section className="messages">
           {messages.length === 0 && (

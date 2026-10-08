@@ -49,6 +49,17 @@ Cost                ${costs.length ? "$" + sum(costs).toFixed(4) : "fill in the 
 Feedback            👍 ${thumbsUp}   👎 ${thumbsDown}
 `);
 
+// v7: Full PDF vs RAG, side by side.
+for (const mode of ["full", "rag"]) {
+  const rows = answered.filter((e) => (e.mode || "full") === mode);
+  if (rows.length === 0) continue;
+  const averageTokens = Math.round(sum(rows.map((e) => e.inputTokens)) / rows.length);
+  console.log(
+    `${mode.padEnd(5)} ${rows.length} answers · ${averageTokens.toLocaleString()} input tokens on average · median ${median(rows.map((e) => e.totalSeconds)).toFixed(1)}s`,
+  );
+}
+console.log();
+
 // Bad answers are the most useful thing in the logs: look them up by requestId.
 const disliked = feedback.filter((f) => f.rating === "down").map((f) => f.requestId);
 if (disliked.length > 0) {

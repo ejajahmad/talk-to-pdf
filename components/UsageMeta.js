@@ -10,7 +10,10 @@ export default function UsageMeta({ usage }) {
 
   return (
     <div className="usage">
-      <span>{usage.model}</span>
+      <span>
+        {usage.model}
+        {usage.mode === "rag" && <b> · RAG</b>}
+      </span>
       <span title="Input tokens: instructions + PDF + chat history + question">
         {usage.inputTokens.toLocaleString()} in
         {usage.cachedTokens > 0 && <b className="cached"> ({cachedPercent}% cached)</b>}

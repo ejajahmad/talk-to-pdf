@@ -178,3 +178,24 @@ select {
 }
 .actions button:hover:not(:disabled) { border-color: var(--border); color: var(--text); }
 .actions button.rated { opacity: 1; border-color: var(--accent); }
+
+/* v7: token count and Full PDF / RAG switch */
+.modebar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.modes { display: flex; gap: 4px; }
+.modes button {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+}
+.modes button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }

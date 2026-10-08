@@ -10,6 +10,8 @@ export default function ToolCalls({ tools }) {
             </>
           )}
           {tool.name === "go_to_page" && `📄 Opened p. ${tool.args.page}: ${tool.args.reason}`}
+          {tool.name === "file_search" &&
+            `🔎 Searched "${tool.args.queries[0]}" → ${tool.output} from p. ${tool.pages.join(", ")}`}
         </span>
       ))}
     </div>
