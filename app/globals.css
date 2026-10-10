@@ -1,22 +1,32 @@
-/* Colors live in variables, so dark mode only has to change them in one place. */
+/* Colors live in variables, so dark mode only has to change them in one place.
+   Theme: soft lavender-grey background, white rounded cards, a violet accent,
+   and a pink → magenta → orange → blue gradient for the assistant's "orb". */
 :root {
-  --bg: #fafaf9;
+  --bg: #eceef5;
   --surface: #ffffff;
-  --text: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #c2410c;
-  --accent-soft: #fff7ed;
+  --surface-2: #f6f6fa;
+  --text: #1f1d2b;
+  --muted: #8b8a9b;
+  --border: #e7e6f0;
+  --accent: #6457e0;
+  --accent-soft: #eeecff;
+  --shadow: 0 12px 32px rgba(76, 64, 160, 0.08);
+  --orb:
+    radial-gradient(circle at 75% 30%, #5b5fe0 0%, transparent 45%),
+    radial-gradient(circle at 35% 80%, #ff8a3d 0%, transparent 42%),
+    radial-gradient(circle at 45% 45%, #b5177a 0%, #e04fb0 55%, #f2c7f2 100%);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0a09;
-    --surface: #1c1917;
-    --text: #f5f5f4;
-    --muted: #a8a29e;
-    --border: #292524;
-    --accent: #fb923c;
-    --accent-soft: #2a1a10;
+    --bg: #12111a;
+    --surface: #1d1c28;
+    --surface-2: #171621;
+    --text: #f2f1f8;
+    --muted: #9b9ab0;
+    --border: #2b2a3a;
+    --accent: #8b80ff;
+    --accent-soft: #26234a;
+    --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -25,177 +35,327 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
 }
 button { font: inherit; cursor: pointer; }
 button:disabled { opacity: 0.5; cursor: default; }
 .muted { color: var(--muted); }
-.error { color: #dc2626; text-align: center; margin: 8px 16px; }
-.link { background: none; border: 0; padding: 0; color: var(--accent); }
+.small { font-size: 12px; }
+.error { color: #e0446a; text-align: center; margin: 8px 16px; font-size: 14px; }
 
-/* Upload screen */
-.upload { max-width: 520px; margin: 18vh auto 0; padding: 0 16px; text-align: center; }
-.dropzone {
-  display: block;
-  margin-top: 24px;
+/* The orb: three soft gradients stacked in a circle, plus two white eyes */
+.orb {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--orb);
+}
+/* Eyes are placed with top/left in %, which is measured against the orb itself */
+.orb .eye {
+  position: absolute;
+  top: 26%;
+  left: 25%;
+  width: 16%;
+  height: 30%;
+  border-radius: 50% 50% 40% 40% / 90% 90% 12% 12%;
+  background: white;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+.orb .eye + .eye { left: 59%; }
+.orb.medium { width: 88px; height: 88px; box-shadow: 0 16px 40px rgba(224, 79, 176, 0.3); }
+.orb.large { width: 240px; height: 240px; animation: float 4s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-10px); } }
+
+/* Welcome screen */
+.welcome {
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
   padding: 48px 16px;
-  border: 2px dashed var(--border);
-  border-radius: 16px;
-  background: var(--surface);
-  font-weight: 600;
-  cursor: pointer;
-}
-.dropzone:hover { border-color: var(--accent); }
-.dropzone input { display: none; }
-
-/* Chat screen: header on top, messages in the middle, the question box at the bottom */
-.chat { max-width: 760px; height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; }
-.chat header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  text-align: center;
 }
-.filename { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
-.suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 15vh; }
-.suggestions button {
-  padding: 8px 14px;
-  border: 1px solid var(--border);
+.welcome h1 { margin: 0; font-size: clamp(32px, 7vw, 44px); line-height: 1.2; font-weight: 600; }
+.highlight { color: var(--accent); }
+.hero { position: relative; margin: 48px 0 40px; }
+/* a blurry pink "reflection" under the orb */
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -40px;
+  height: 50px;
+  border-radius: 50%;
+  background: #e04fb0;
+  filter: blur(30px);
+  opacity: 0.35;
+  z-index: -1;
+}
+.hello {
+  position: absolute;
+  top: -10px;
+  left: -40px;
+  z-index: 1;
+  padding: 8px 20px;
+  border-radius: 20px 20px 20px 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 20px;
+  font-weight: 500;
+}
+.welcome > p { margin: 0 0 28px; font-size: 17px; }
+.get-started {
+  width: 100%;
+  padding: 18px;
   border-radius: 999px;
   background: var(--surface);
-  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
-.suggestions button:hover { border-color: var(--accent); }
+.get-started:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(100, 87, 224, 0.2); }
+.get-started input { display: none; }
 
+/* Chat screen: header on top, messages in the middle, the question box at the bottom */
+.chat {
+  max-width: 760px;
+  height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+}
+.chat header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
+.chat header .title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.filename { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.round {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 18px;
+}
+.pill {
+  padding: 7px 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pill:hover:not(:disabled) { background: var(--accent-soft); }
+.session-total { color: var(--accent); font-size: 12px; font-weight: 500; }
+
+/* min-height: 0 lets the list shrink and scroll inside the chat, instead of stretching the page */
+.messages { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+/* Empty chat: orb, greeting and suggestion cards */
+.empty { margin: auto 0; text-align: center; }
+.empty h2 { margin: 16px 0 0; font-size: 24px; font-weight: 600; }
+.empty > p { margin: 0 0 24px; }
+.suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.suggestions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-align: left;
+  font-weight: 500;
+  transition: transform 0.15s;
+}
+.suggestions button:hover { transform: translateY(-2px); }
+.icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+.icon.purple { background: linear-gradient(135deg, #c9b8ff, #8b7bff); }
+.icon.blue { background: linear-gradient(135deg, #b8d4ff, #6f8cff); }
+.icon.orange { background: linear-gradient(135deg, #ffd0b0, #ff8a5c); }
+.icon.pink { background: linear-gradient(135deg, #ffc4e6, #e86bb8); }
+
+/* Messages: the user's in a white card on the right, the assistant's as plain text */
 .message { display: flex; flex-direction: column; }
 .message.user { align-items: flex-end; }
-.bubble { max-width: 85%; padding: 10px 14px; border-radius: 14px; }
+.author { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.bubble { max-width: 85%; }
 .bubble p:first-child { margin-top: 0; }
 .bubble p:last-child { margin-bottom: 0; }
-.message.user .bubble { background: var(--text); color: var(--bg); white-space: pre-wrap; }
-.message.assistant .bubble { background: var(--surface); border: 1px solid var(--border); }
+.message.user .bubble {
+  padding: 12px 18px;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  white-space: pre-wrap;
+}
+.message.assistant .bubble { max-width: 100%; padding-left: 36px; }
 .dots { color: var(--muted); animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity: 0.4; } }
 
-.composer { display: flex; gap: 8px; padding: 12px 16px 20px; border-top: 1px solid var(--border); }
+/* Question box: a white pill with a round violet button */
+.composer {
+  display: flex;
+  gap: 8px;
+  margin: 0 16px 16px;
+  padding: 6px 6px 6px 20px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
 .composer input {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  border: 0;
+  outline: 0;
+  background: none;
   color: var(--text);
   font: inherit;
 }
 .composer button {
-  padding: 0 18px;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 50%;
   background: var(--accent);
+  box-shadow: 0 8px 20px rgba(100, 87, 224, 0.35);
   color: white;
-  font-weight: 600;
+  font-size: 20px;
 }
-.composer button.stop { background: var(--text); color: var(--bg); }
+.composer button.stop { background: var(--orb); font-size: 14px; }
 
-/* v3: the PDF viewer on the left, the chat on the right */
-.workspace { display: grid; grid-template-columns: 1fr 1fr; height: 100dvh; }
-.workspace .chat { max-width: none; width: 100%; min-width: 0; }
-.viewer { width: 100%; height: 100dvh; border: 0; border-right: 1px solid var(--border); background: var(--border); }
+/* The PDF viewer on the left, the chat on the right, both as rounded cards */
+/* The page itself never scrolls: only the message list does, and the PDF viewer scrolls on its own */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 16px;
+  height: 100dvh;
+  padding: 16px;
+  overflow: hidden;
+}
+.workspace .chat { max-width: none; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border-radius: 28px; box-shadow: var(--shadow); }
+.viewer { width: 100%; height: 100%; border: 0; border-radius: 28px; background: var(--surface); box-shadow: var(--shadow); }
 .cite {
-  padding: 0 2px;
+  padding: 0 6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
+  font-size: 13px;
   font-weight: 600;
 }
-.cite:hover { text-decoration: underline; }
+.cite:hover { background: var(--accent); color: white; }
 
 /* On small screens: PDF on top, chat below */
 @media (max-width: 900px) {
-  .workspace { grid-template-columns: 1fr; grid-template-rows: 40dvh 60dvh; }
-  .viewer { height: 40dvh; border-right: 0; border-bottom: 1px solid var(--border); }
-  .workspace .chat { height: 60dvh; }
+  .workspace { grid-template-columns: 1fr; grid-template-rows: 40% minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .suggestions { grid-template-columns: 1fr; }
+  .chat header select { max-width: 110px; }
 }
 
-/* v4: model picker, usage line under each answer, total for the chat */
+/* Model picker, usage line under each answer */
 select {
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
   font: inherit;
-  font-size: 14px;
-}
-.usage { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 12px; color: var(--muted); }
-.usage .cached { color: #16a34a; font-weight: 600; }
-.session-total {
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--accent-soft);
   font-size: 13px;
-  color: var(--muted);
 }
+.usage { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; padding-left: 36px; font-size: 12px; color: var(--muted); }
+.usage .cached { color: #1fa971; font-weight: 600; }
 
-/* v5: tool calls and the key facts table */
-.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* Tool calls and the key facts table */
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .tool {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
+  padding: 4px 12px;
   border-radius: 999px;
   background: var(--accent-soft);
+  color: var(--accent);
   font-size: 13px;
 }
 .facts {
   width: 100%;
   overflow-x: auto;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  padding: 16px 18px;
+  border-radius: 22px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 .facts p { margin-top: 0; }
-.badge { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--accent); }
+.badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
 .facts table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.facts td { padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
-.category { padding: 1px 6px; border-radius: 6px; background: var(--border); font-size: 11px; white-space: nowrap; }
-.chat header .filename { flex: 1; min-width: 0; }
+.facts td { padding: 8px 8px 8px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.category { padding: 2px 8px; border-radius: 999px; background: var(--surface-2); font-size: 11px; white-space: nowrap; }
 
-/* v6: Copy and 👍/👎 under each answer */
-.actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 13px; }
+/* Copy and 👍/👎 under each answer */
+.actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; padding-left: 30px; font-size: 13px; }
 .actions button {
-  padding: 2px 8px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
   background: none;
   color: var(--muted);
 }
-.actions button:hover:not(:disabled) { border-color: var(--border); color: var(--text); }
-.actions button.rated { opacity: 1; border-color: var(--accent); }
+.actions button:hover:not(:disabled) { background: var(--surface); color: var(--text); }
+.actions button.rated { opacity: 1; background: var(--accent-soft); }
 
-/* v7: token count and Full PDF / RAG switch */
+/* Token count and the Full PDF / RAG switch */
 .modebar {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 16px 10px;
   font-size: 13px;
+  color: var(--muted);
 }
-.modes { display: flex; gap: 4px; }
+.modebar b { color: var(--text); font-weight: 600; }
+.modes { display: flex; gap: 6px; }
 .modes button {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
+  padding: 4px 14px;
+  border: 0;
   border-radius: 999px;
   background: var(--surface);
   color: var(--text);
+  box-shadow: var(--shadow);
 }
-.modes button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.modes button.active { background: var(--accent); color: white; font-weight: 500; }

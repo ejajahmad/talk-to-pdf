@@ -8,15 +8,16 @@ import ToolCalls from "@/components/ToolCalls";
 import FactsCard from "@/components/FactsCard";
 import AnswerActions from "@/components/AnswerActions";
 import ModeBar from "@/components/ModeBar";
+import Orb from "@/components/Orb";
 import { LIMITS } from "@/lib/guardrails";
 import { MODELS } from "@/lib/models";
 import { readJsonLines } from "@/lib/read-json-lines";
 
 const SUGGESTIONS = [
-  "Summarise this document",
-  "List any dates or deadlines",
-  "Show me the most important table", // the model should call go_to_page
-  "What's the % change between the two biggest numbers?", // the model should call calculate
+  { icon: "📝", color: "purple", text: "Summarise this document" },
+  { icon: "📅", color: "blue", text: "List any dates or deadlines" },
+  { icon: "📊", color: "orange", text: "Show me the most important table" }, // the model should call go_to_page
+  { icon: "🧮", color: "pink", text: "What's the % change between the two biggest numbers?" }, // the model should call calculate
 ];
 
 export default function Home() {
@@ -201,17 +202,25 @@ export default function Home() {
 
   if (!pdf) {
     return (
-      <main className="upload">
-        <h1>Talk to your PDF</h1>
-        <p className="muted">Upload a PDF (up to 32 MB) and ask it anything.</p>
-        <label className="dropzone">
+      <main className="welcome">
+        <h1>
+          Your <span className="highlight">Smart PDF Assistant</span> for Any Document
+        </h1>
+        <div className="hero">
+          <span className="hello">Hello!</span>
+          <Orb size="large" />
+        </div>
+        <p className="muted">
+          Upload a PDF (up to 32 MB) and get instant answers to anything inside it
+        </p>
+        <label className="get-started">
           <input
             type="file"
             accept="application/pdf"
             disabled={uploading}
             onChange={(e) => uploadPdf(e.target.files[0])}
           />
-          {uploading ? "Uploading…" : "Choose a PDF"}
+          {uploading ? "Uploading…" : "Get started →"}
         </label>
         {error && <p className="error">{error}</p>}
       </main>
@@ -224,7 +233,20 @@ export default function Home() {
 
       <main className="chat">
         <header>
-          <span className="filename">📄 {pdf.filename}</span>
+          <button className="round" onClick={() => setPdf(null)} title="New PDF">
+            ←
+          </button>
+          <div className="title">
+            <span className="filename">{pdf.filename}</span>
+            {sessionTokens > 0 ? (
+              <span className="session-total">
+                ✦ {sessionTokens.toLocaleString()} tokens
+                {sessionCost > 0 && ` · ${formatDollars(sessionCost)}`}
+              </span>
+            ) : (
+              <span className="muted small">Talk to PDF</span>
+            )}
+          </div>
           <select value={modelId} onChange={(e) => setModelId(e.target.value)} disabled={loading}>
             {MODELS.map((model) => (
               <option key={model.id} value={model.id}>
@@ -232,31 +254,27 @@ export default function Home() {
               </option>
             ))}
           </select>
-          <button className="link" onClick={extractFacts} disabled={loading}>
-            {extracting ? "Extracting…" : "Key facts"}
-          </button>
-          <button className="link" onClick={() => setPdf(null)}>
-            New PDF
+          <button className="pill" onClick={extractFacts} disabled={loading}>
+            {extracting ? "Extracting…" : "✦ Key facts"}
           </button>
         </header>
-
-        {sessionTokens > 0 && (
-          <div className="session-total">
-            This chat so far: {sessionTokens.toLocaleString()} tokens
-            {sessionCost > 0 && ` · ${formatDollars(sessionCost)}`}
-          </div>
-        )}
 
         <ModeBar tokens={pdf.tokens} mode={mode} onModeChange={changeMode} indexing={indexing} disabled={loading} />
 
         <section className="messages">
           {messages.length === 0 && (
-            <div className="suggestions">
-              {SUGGESTIONS.map((suggestion) => (
-                <button key={suggestion} onClick={() => sendMessage(suggestion)}>
-                  {suggestion}
-                </button>
-              ))}
+            <div className="empty">
+              <Orb size="medium" />
+              <h2>Hi there!</h2>
+              <p className="muted">How may I help you with this PDF today?</p>
+              <div className="suggestions">
+                {SUGGESTIONS.map((suggestion) => (
+                  <button key={suggestion.text} onClick={() => sendMessage(suggestion.text)}>
+                    <span className={`icon ${suggestion.color}`}>{suggestion.icon}</span>
+                    {suggestion.text}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -270,6 +288,11 @@ export default function Home() {
             }
             return (
               <div key={i} className={`message ${message.role}`}>
+                {message.role === "assistant" && (
+                  <div className="author">
+                    <Orb /> AI-Assistant
+                  </div>
+                )}
                 <div className="bubble">
                   {message.tools && message.tools.length > 0 && <ToolCalls tools={message.tools} />}
                   {message.role === "user" && message.content}
@@ -302,12 +325,12 @@ export default function Home() {
             maxLength={LIMITS.maxQuestionLength}
           />
           {loading ? (
-            <button type="button" className="stop" onClick={stop}>
-              Stop
+            <button type="button" className="stop" onClick={stop} title="Stop">
+              ■
             </button>
           ) : (
-            <button type="submit" disabled={input.trim() === ""}>
-              Send
+            <button type="submit" disabled={input.trim() === ""} title="Send">
+              ↑
             </button>
           )}
         </form>
