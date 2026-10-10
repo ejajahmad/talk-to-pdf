@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The assistant's orb: the same three gradients as the orb in globals.css, plus two eyes -->
+  <defs>
+    <radialGradient id="base" cx="45%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#b5177a" />
+      <stop offset="55%" stop-color="#e04fb0" />
+      <stop offset="100%" stop-color="#f2c7f2" />
+    </radialGradient>
+    <radialGradient id="blue" cx="75%" cy="30%" r="45%">
+      <stop offset="0%" stop-color="#5b5fe0" />
+      <stop offset="100%" stop-color="#5b5fe0" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="orange" cx="35%" cy="80%" r="42%">
+      <stop offset="0%" stop-color="#ff8a3d" />
+      <stop offset="100%" stop-color="#ff8a3d" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="32" fill="url(#base)" />
+  <circle cx="32" cy="32" r="32" fill="url(#blue)" />
+  <circle cx="32" cy="32" r="32" fill="url(#orange)" />
+  <path d="M21 36c0-7 2-14 5-14s5 7 5 14c0 2-2 2.5-5 2.5S21 38 21 36z" fill="#fff" />
+  <path d="M33 36c0-7 2-14 5-14s5 7 5 14c0 2-2 2.5-5 2.5S33 38 33 36z" fill="#fff" />
+</svg>

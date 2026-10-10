@@ -10,6 +10,9 @@
   --border: #e7e6f0;
   --accent: #6457e0;
   --accent-soft: #eeecff;
+  --danger: #c8234f;
+  --danger-soft: #ffe8ee;
+  --glass: rgba(236, 238, 245, 0.7);
   --shadow: 0 12px 32px rgba(76, 64, 160, 0.08);
   --orb:
     radial-gradient(circle at 75% 30%, #5b5fe0 0%, transparent 45%),
@@ -26,6 +29,9 @@
     --border: #2b2a3a;
     --accent: #8b80ff;
     --accent-soft: #26234a;
+    --danger: #ff7a9a;
+    --danger-soft: #3a1622;
+    --glass: rgba(18, 17, 26, 0.6);
     --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 }
@@ -39,6 +45,7 @@ body {
   line-height: 1.6;
 }
 button { font: inherit; cursor: pointer; }
+svg { flex-shrink: 0; vertical-align: -0.15em; }
 button:disabled { opacity: 0.5; cursor: default; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
@@ -64,8 +71,13 @@ button:disabled { opacity: 0.5; cursor: default; }
   border-radius: 50% 50% 40% 40% / 90% 90% 12% 12%;
   background: white;
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+  animation: blink 5s infinite;
 }
 .orb .eye + .eye { left: 59%; }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+/* While the AI writes, the orb breathes and its colors shift */
+.orb.thinking { animation: think 1.4s ease-in-out infinite; }
+@keyframes think { 50% { transform: scale(1.15); filter: hue-rotate(45deg) saturate(1.3); } }
 .orb.medium { width: 88px; height: 88px; box-shadow: 0 16px 40px rgba(224, 79, 176, 0.3); }
 .orb.large { width: 240px; height: 240px; animation: float 4s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-10px); } }
@@ -113,6 +125,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .welcome > p { margin: 0 0 28px; font-size: 17px; }
 .get-started {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 18px;
   border-radius: 999px;
@@ -139,6 +155,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .chat header .title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
 .filename { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .round {
+  display: grid;
+  place-items: center;
   width: 42px;
   height: 42px;
   flex-shrink: 0;
@@ -150,6 +168,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-size: 18px;
 }
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 7px 14px;
   border: 1.5px solid var(--accent);
   border-radius: 999px;
@@ -160,7 +181,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   white-space: nowrap;
 }
 .pill:hover:not(:disabled) { background: var(--accent-soft); }
-.session-total { color: var(--accent); font-size: 12px; font-weight: 500; }
+.session-total { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 500; }
 
 /* min-height: 0 lets the list shrink and scroll inside the chat, instead of stretching the page */
 .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 20px; }
@@ -192,7 +213,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  font-size: 18px;
+  color: white;
 }
 .icon.purple { background: linear-gradient(135deg, #c9b8ff, #8b7bff); }
 .icon.blue { background: linear-gradient(135deg, #b8d4ff, #6f8cff); }
@@ -220,9 +241,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* Question box: a white pill with a round violet button */
 .composer {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
   margin: 0 16px 16px;
-  padding: 6px 6px 6px 20px;
+  padding: 6px;
   border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -230,13 +252,16 @@ button:disabled { opacity: 0.5; cursor: default; }
 .composer input {
   flex: 1;
   min-width: 0;
+  padding: 0 6px;
   border: 0;
   outline: 0;
   background: none;
   color: var(--text);
   font: inherit;
 }
-.composer button {
+.composer .send {
+  display: grid;
+  place-items: center;
   width: 46px;
   height: 46px;
   flex-shrink: 0;
@@ -247,7 +272,23 @@ button:disabled { opacity: 0.5; cursor: default; }
   color: white;
   font-size: 20px;
 }
-.composer button.stop { background: var(--orb); font-size: 14px; }
+.composer .send.stop { background: var(--orb); }
+/* Small round buttons inside the question box: "Explain simply" and the microphone */
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+}
+.icon-button:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.icon-button.on { background: var(--accent-soft); color: var(--accent); }
+/* v8: the assistant's orb, always at the start of the question box */
+.orb.button { width: 40px; height: 40px; box-shadow: 0 6px 16px rgba(224, 79, 176, 0.35); }
 
 /* The PDF viewer on the left, the chat on the right, both as rounded cards */
 /* The page itself never scrolls: only the message list does, and the PDF viewer scrolls on its own */
@@ -261,7 +302,70 @@ button:disabled { opacity: 0.5; cursor: default; }
   overflow: hidden;
 }
 .workspace .chat { max-width: none; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border-radius: 28px; box-shadow: var(--shadow); }
-.viewer { width: 100%; height: 100%; border: 0; border-radius: 28px; background: var(--surface); box-shadow: var(--shadow); }
+.viewer-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.viewer { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 16px; background: var(--surface-2); }
+.viewer-loading { text-align: center; margin-top: 30%; }
+.pdf-page {
+  position: relative;
+  width: 100%;
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 4px 16px rgba(76, 64, 160, 0.1);
+}
+.pdf-page canvas { display: block; width: 100%; height: 100%; }
+/* v8: the highlight over the cited sentence. It glows when it appears. */
+.mark {
+  position: absolute;
+  border-radius: 4px;
+  background: rgba(100, 87, 224, 0.22);
+  box-shadow: 0 0 0 2px rgba(100, 87, 224, 0.5);
+  mix-blend-mode: multiply;
+  animation: glow 1.6s ease-out;
+}
+@keyframes glow { 0%, 40% { background: rgba(224, 79, 176, 0.45); box-shadow: 0 0 0 6px rgba(224, 79, 176, 0.35); } }
+
+/* Tabs above the viewer: one per PDF, plus "Add PDF" */
+.doc-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px; }
+.doc-tab {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.doc-tab button { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 12px; border: 0; background: none; color: var(--text); }
+.doc-tab .remove { padding: 6px 10px 6px 0; color: var(--muted); }
+.doc-tab.active { background: var(--accent); }
+.doc-tab.active button { color: white; }
+.doc-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.add-doc:hover { border-color: var(--accent); }
+.add-doc.disabled { opacity: 0.5; pointer-events: none; }
+.add-doc.busy { pointer-events: none; }
+.add-doc input { display: none; }
 .cite {
   padding: 0 6px;
   border: 0;
@@ -278,6 +382,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   .workspace { grid-template-columns: 1fr; grid-template-rows: 40% minmax(0, 1fr); gap: 10px; padding: 10px; }
   .suggestions { grid-template-columns: 1fr; }
   .chat header select { max-width: 110px; }
+  .compare { grid-template-columns: 1fr; }
 }
 
 /* Model picker, usage line under each answer */
@@ -291,18 +396,28 @@ select {
   font: inherit;
   font-size: 13px;
 }
+.usage span { display: inline-flex; align-items: center; gap: 3px; }
 .usage { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; padding-left: 36px; font-size: 12px; color: var(--muted); }
 .usage .cached { color: #1fa971; font-weight: 600; }
 
 /* Tool calls and the key facts table */
 .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 12px;
+  border: 0;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 13px;
+  text-align: left;
 }
+button.tool:hover { box-shadow: 0 0 0 1.5px var(--accent); }
+/* v8: the document tried to give the AI orders, and it refused */
+.tool.blocked { background: var(--danger-soft); color: var(--danger); }
+button.tool.blocked:hover { box-shadow: 0 0 0 1.5px var(--danger); }
 .facts {
   width: 100%;
   overflow-x: auto;
@@ -328,7 +443,10 @@ select {
 /* Copy and 👍/👎 under each answer */
 .actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; padding-left: 30px; font-size: 13px; }
 .actions button {
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -351,6 +469,9 @@ select {
 .modebar b { color: var(--text); font-weight: 600; }
 .modes { display: flex; gap: 6px; }
 .modes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 14px;
   border: 0;
   border-radius: 999px;
@@ -359,3 +480,197 @@ select {
   box-shadow: var(--shadow);
 }
 .modes button.active { background: var(--accent); color: white; font-weight: 500; }
+.warning { display: inline-flex; align-items: center; gap: 4px; }
+.warning svg { color: #e08a00; }
+
+/* v8: suggested follow-up questions under the last answer */
+.follow-ups { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 10px; padding-left: 36px; }
+.follow-ups button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  transition: transform 0.15s;
+}
+.follow-ups button svg { color: var(--accent); }
+.follow-ups button:hover { transform: translateX(3px); }
+
+/* v8: Compare mode, Full PDF and RAG answers side by side */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-left: 36px; }
+.compare-column { min-width: 0; padding: 14px; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+.message .compare-column .bubble, .compare-column .usage, .compare-column .actions { padding-left: 0; }
+.compare-column .actions { flex-wrap: wrap; }
+.compare-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* v8: the "Under the hood" drawer that shows the prompt */
+.backdrop { position: fixed; inset: 0; z-index: 10; background: var(--glass); backdrop-filter: blur(6px); }
+.drawer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(560px, calc(100% - 24px));
+  overflow-y: auto;
+  padding: 20px 24px;
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(20, 18, 40, 0.3);
+  animation: slide-in 0.25s ease-out;
+}
+@keyframes slide-in { from { transform: translateX(40px); opacity: 0; } }
+.drawer header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.drawer h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.drawer h3 { margin: 22px 0 8px; font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.drawer pre {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.prompt-message { margin-bottom: 10px; }
+.role { display: inline-block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+.role.developer { color: #e08a00; }
+
+/* v8: full-screen voice mode */
+.voice-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  /* see-through: the app stays visible, softly blurred, behind voice mode */
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  text-align: center;
+}
+/* Fade in the contents, not the overlay itself: an animated opacity switches off backdrop-filter in Chrome */
+.voice-mode > * { animation: fade-in 0.3s ease-out; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } }
+.voice-close { position: absolute; top: 20px; right: 20px; }
+.voice-orb {
+  --level: 0; /* how loud you are, set by VoiceMode.js */
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  transform: scale(calc(1 + var(--level) * 0.25));
+  transition: transform 0.08s linear;
+}
+.voice-orb .orb.large { animation: none; }
+/* Soft rings that ripple out while listening, bigger when you speak louder */
+.voice-orb::before,
+.voice-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  background: var(--orb);
+  filter: blur(24px);
+  opacity: 0.3;
+  transform: scale(calc(1 + var(--level) * 0.6));
+}
+.voice-orb.listening::after { animation: ripple 2s ease-out infinite; }
+@keyframes ripple { from { transform: scale(1); opacity: 0.45; } to { transform: scale(1.6); opacity: 0; } }
+.voice-orb.listening .orb { animation: none; }
+.voice-orb:not(.listening) .orb { filter: saturate(0.6); }
+.voice-status { margin: 48px 0 8px; color: var(--accent); font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.voice-text { max-width: 640px; min-height: 3.2em; margin: 0; font-size: clamp(20px, 3.5vw, 28px); font-weight: 500; line-height: 1.4; }
+.voice-buttons { display: flex; align-items: center; gap: 20px; margin-top: 40px; }
+.round.big { width: 64px; height: 64px; }
+.round.send { background: var(--accent); color: white; box-shadow: 0 8px 20px rgba(100, 87, 224, 0.35); }
+
+/* v8: progress bars (upload and chat limit) */
+.progress {
+  position: relative;
+  display: block;
+  flex: 1;
+  height: 6px;
+  min-width: 60px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e04fb0, var(--accent));
+  transition: width 0.3s ease;
+}
+.progress.warn > span { background: linear-gradient(90deg, #ff8a3d, #e0446a); }
+/* "working": we can't measure this step, so a light sweeps across the full bar */
+.progress.working > span {
+  background: linear-gradient(90deg, #e04fb0, var(--accent), #e04fb0);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.upload-status { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 0 12px; font-size: 16px; }
+.upload-status .progress { flex: none; height: 8px; }
+.add-doc-progress { display: flex; align-items: center; gap: 8px; width: 120px; font-variant-numeric: tabular-nums; }
+
+.chat-limit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 28px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.chat-limit .progress { max-width: 220px; }
+.chat-limit.full { color: var(--danger); font-weight: 500; }
+.chat-limit .pill { padding: 3px 10px; font-size: 12px; }
+.composer input:disabled { cursor: not-allowed; }
+
+/* v8: saved chats, on the start screen and in the "Your chats" panel */
+.recent { width: 100%; margin-top: 40px; text-align: left; }
+.recent h2 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px 4px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.history { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.history li {
+  display: flex;
+  align-items: center;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: transform 0.15s;
+}
+.history li:hover { transform: translateY(-1px); }
+
+.history-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 12px 14px; border: 0; background: none; color: var(--text); text-align: left; }
+.history-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.history-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.history-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-title { font-weight: 500; }
+.history-delete { padding: 10px 14px; border: 0; background: none; color: var(--muted); }
+.history-delete:hover { color: var(--danger); }
+.history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.history-empty { margin: 20px 4px; }
+.drawer .history li { background: var(--surface-2); box-shadow: none; }
+.history li.current, .drawer .history li.current { box-shadow: 0 0 0 2px var(--accent); }

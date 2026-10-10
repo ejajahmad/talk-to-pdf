@@ -1,6 +1,6 @@
 // Draws the JSON from /api/extract as a table.
 // The schema guarantees the shape, so this is plain React: no parsing, no regex.
-export default function FactsCard({ facts, onCitationClick }) {
+export default function FactsCard({ facts, doc, onCitationClick }) {
   return (
     <div className="facts">
       <p>
@@ -16,7 +16,10 @@ export default function FactsCard({ facts, onCitationClick }) {
               <td className="muted">{fact.label}</td>
               <td>{fact.value}</td>
               <td>
-                <button className="cite" onClick={() => onCitationClick(fact.page)}>
+                <button
+                  className="cite"
+                  onClick={() => onCitationClick({ doc, page: fact.page, quote: `${fact.label} ${fact.value}` })}
+                >
                   p. {fact.page}
                 </button>
               </td>
